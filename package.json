@@ -1,0 +1,11 @@
+{
+  "name": "codex-agent-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {"codex-agent-monitor": "bin/codex-agent-monitor"},
+  "scripts": {"build": "tsc", "start": "node dist/main.js"},
+  "engines": {"node": ">=20"},
+  "dependencies": {"ws": "^8.18.3", "zod": "^4.1.0"},
+  "devDependencies": {"@types/node": "^22.0.0", "@types/ws": "^8.18.1", "typescript": "^5.9.2"}
+}
