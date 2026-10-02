@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Client, pageSchema, threadSchema, spawnSource, itemSchema, turnSchema, type Thread } from './protocol.js';
 
 export interface Agent {
-  id:string; parentId:string|null; name:string; cwd:string; role:string; nickname:string;
+  id:string; parentId:string|null; name:string; cwd:string; role:string; nickname:string; agentPath:string;
   model:string; effort:string; prompt:string; spawnPrompt:string; promptSource:string;
   status:string; flags:string[]; lastActivity:number; lastTurnStatus:string;
 }
@@ -57,6 +57,7 @@ export class MonitorStore extends EventEmitter {
     const parent=t.parentThreadId || (source.success?source.data.subAgent.thread_spawn.parent_thread_id:null);
     this.agents.set(t.id,{
       id:t.id,parentId:parent,name:t.name,cwd:t.cwd,role:t.agentRole||(source.success?source.data.subAgent.thread_spawn.agent_role:''),nickname:t.agentNickname||(source.success?source.data.subAgent.thread_spawn.agent_nickname:''),
+      agentPath:(source.success?source.data.subAgent.thread_spawn.agent_path:'')||old?.agentPath||'',
       model:t.model,effort:t.reasoningEffort,prompt:old?.prompt||t.preview,spawnPrompt:old?.spawnPrompt??'',promptSource:old?.promptSource||(t.preview?'session preview':'unavailable'),status:t.status.type,flags:t.status.activeFlags,
       lastActivity:Math.max(old?.lastActivity??0,t.recencyAt??t.updatedAt),lastTurnStatus:old?.lastTurnStatus??'',
     });

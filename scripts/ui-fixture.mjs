@@ -8,6 +8,7 @@ store.connection = 'Connected';
 store.reconciliations = 1;
 function agent(id, parentId, status, effort, time) {
   return { id, parentId, status, effort, name: id, role: parentId ? 'explorer' : '', nickname: parentId ? id : '',
+    agentPath: parentId ? `/root/${id}` : '',
     cwd: '/fixture', model: 'gpt-fixture', prompt: `task for ${id}`, spawnPrompt: '', promptSource: 'fixture',
     flags: [], lastActivity: time, lastTurnStatus: '' };
 }
@@ -23,13 +24,16 @@ const entries = [
   agent('root-error', null, 'systemError', 'minimal', now - 7),
 ];
 for (const a of entries) store.agents.set(a.id, a);
+store.agents.get('grandchild-active').agentPath = '/root/bridge-unloaded/grandchild-active';
+store.agents.get('child-unloaded').agentPath = '';
 store.agents.get('root-alpha').prompt = 'First task line\n\n  - indented item\nLast line';
 let changes = 0;
 process.on('SIGUSR1', () => {
   changes++;
   if (changes === 1) store.agents.get('grandchild-active').model = 'gpt-updated';
   else if (changes === 2) store.agents.set('new-child', agent('new-child', 'root-alpha', 'idle', 'low', now - 10));
-  else store.agents.delete('new-child');
+  else if (changes === 3) store.agents.delete('new-child');
+  else store.agents.get('child-unloaded').agentPath = '/root/recovered-task';
   store.emit('change');
 });
 process.on('SIGUSR2', () => {

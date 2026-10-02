@@ -19,5 +19,5 @@ try {
   const changes=new Set();const last=new Map(agents.map(a=>[a.id,a.status]));
   store.on('change',()=>{for(const a of store.agents.values()){if(last.has(a.id)&&last.get(a.id)!==a.status)changes.add(`${last.get(a.id)} -> ${a.status}`);last.set(a.id,a.status);}});
   await new Promise(resolve=>setTimeout(resolve,12000));
-  console.log(JSON.stringify({passed:true,roots:agents.length-children.length,children:children.length,models:agents.filter(a=>a.model).length,tasks:agents.filter(a=>a.prompt).length,spawnPrompts:children.filter(a=>a.spawnPrompt).length,statuses:[...new Set(agents.map(a=>a.status))],refreshes:store.reconciliations,notifications:store.notificationCount,observedTransitions:[...changes]}));
+  console.log(JSON.stringify({passed:true,roots:agents.length-children.length,children:children.length,models:agents.filter(a=>a.model).length,tasks:agents.filter(a=>a.prompt).length,taskReferences:children.filter(a=>a.agentPath).length,spawnPrompts:children.filter(a=>a.spawnPrompt).length,statuses:[...new Set(agents.map(a=>a.status))],refreshes:store.reconciliations,notifications:store.notificationCount,observedTransitions:[...changes]}));
 }finally{store.stop();}

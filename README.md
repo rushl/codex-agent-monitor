@@ -89,11 +89,12 @@ Thread lifecycle/status notifications update the display immediately. A reconcil
 | Parent and tree depth | Protocol `parentThreadId`, with `source.subAgent.thread_spawn.parent_thread_id` fallback; tree depth follows these edges. Forks are not treated as spawned children. |
 | Role and nickname | Protocol fields, falling back to matching spawn-source fields. |
 | Model and effort | Current configured values for loaded threads; latest persisted values for unloaded threads. Not per-turn model execution telemetry. |
-| Task | Latest turn's user input when available, recorded spawn/follow-up assignment, then session preview. Details identify the source. |
+| Task | Subagents show the canonical Codex reference from `source.subAgent.thread_spawn.agent_path` (for example, `/root/asymmetric_seed_counts`). Missing references show `Task unavailable`. Root sessions show user input or assignment text, falling back to the session preview; root details identify the source. |
+| Current task | Details retain the latest turn's user input when available, recorded spawn/follow-up assignment, then session preview. |
 | Original assignment | Matching recorded parent `collabAgentToolCall` with `spawnAgent`. First child input is used only as a historical task fallback, labeled separately because it may contain inherited context. |
 | Activity age | Protocol timestamps plus locally observed turn/item notifications; not a precise CPU-activity or execution-duration measurement. |
 
-Some newer path-based subagents on 0.155.1 expose **no assignment text**: their preview is empty, their turns have no user message, and the parent records only `subAgentActivity`. That item contains an agent ID/path and lifecycle kind, not the prompt. These agents show `Task unavailable`. The monitor does not invent a task from reasoning or assistant output. Older recorded spawn calls do provide assignment text.
+Some newer path-based subagents on 0.155.1 expose **no assignment text**: their preview is empty, their turns have no user message, and the parent records only `subAgentActivity`. That item contains an agent ID/path and lifecycle kind, not the prompt. These agents show their canonical task reference when the spawn-source path is available; otherwise they show `Task unavailable`. Their detail page omits unavailable assignment text. The monitor does not invent assignment text from reasoning or assistant output. Older recorded spawn calls do provide assignment text.
 
 Prompt reconstruction is intentionally bounded to the latest parent turn and first/latest child turns. An assignment recorded only in an older parent turn may therefore be absent. Empty or unsupported history retains the preview. Archived agents are excluded. Internal review, compaction, memory-consolidation and unrecognized subagent source kinds are excluded; explicit thread-spawn agents are included recursively.
 

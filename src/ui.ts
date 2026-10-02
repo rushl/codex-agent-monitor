@@ -118,6 +118,7 @@ function title(agent: Agent): string {
 }
 
 function task(agent: Agent): string {
+  if (agent.parentId) return clean(agent.agentPath) || 'Task unavailable';
   return clean(agent.prompt) || clean(agent.spawnPrompt) || 'Task unavailable';
 }
 
@@ -181,6 +182,7 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
           descendant.cwd,
           descendant.role,
           descendant.nickname,
+          descendant.agentPath,
           descendant.model,
           descendant.effort,
           descendant.prompt,
@@ -317,7 +319,7 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
         ...valueSpans('last used', age(agent.lastActivity), styles.timestamp),
       ];
       lines.push({ spans: metadata, id: null });
-      lines.push({ spans: [{ text: continuation }, ...valueSpans('task', `“${task(agent)}”`)], id: null });
+      lines.push({ spans: [{ text: continuation }, ...valueSpans('task', agent.parentId ? task(agent) : `“${task(agent)}”`)], id: null });
       const childPrefix = branch ? continuation : '';
       descendants.forEach((child, index) => {
         lines.push({ spans: [{ text: `${childPrefix}│` }], id: null });
@@ -350,7 +352,9 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
       { label: 'cwd', value: clean(agent.cwd) },
       { label: 'last activity', value: age(agent.lastActivity), style: styles.timestamp },
       { label: 'last turn', value: clean(agent.lastTurnStatus), style: stateStyle(agent.lastTurnStatus) },
-      { label: 'task source', value: clean(agent.promptSource) },
+      agent.parentId
+        ? { label: 'task', value: task(agent) }
+        : { label: 'task source', value: clean(agent.promptSource) },
       { label: 'flags', value: agent.flags.map(clean).filter(Boolean).join(', ') },
       { label: 'current task', value: cleanMultiline(agent.prompt) },
       { label: 'spawn assignment', value: cleanMultiline(agent.spawnPrompt) },

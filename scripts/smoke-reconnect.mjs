@@ -28,7 +28,7 @@ function thread(id, parentId, role, status) {
         parent_thread_id: parentId,
         agent_role: role,
         agent_nickname: `${role}-${id}`,
-        agent_path: `/root/${id}`,
+        agent_path: `${threads.get(parentId)?.source?.subAgent?.thread_spawn?.agent_path ?? '/root'}/${id}`,
       } } }
     : 'cli';
   return {
@@ -130,11 +130,23 @@ try {
   assert.equal(store.agents.get('child')?.parentId, 'root');
   assert.equal(store.agents.get('grandchild')?.parentId, 'child');
   assert.equal(store.agents.get('grandchild')?.role, 'explorer');
+  assert.equal(store.agents.get('root')?.agentPath, '');
+  assert.equal(store.agents.get('child')?.agentPath, '/root/child');
+  assert.equal(store.agents.get('grandchild')?.agentPath, '/root/child/grandchild');
   for (const value of store.agents.values()) {
     assert.equal(value.status, 'active');
     assert.equal(value.model, 'fixture-model');
     assert.match(value.prompt, /^Task for /);
   }
+
+  delete threads.get('grandchild').source.subAgent.thread_spawn.agent_path;
+  threads.get('child').source.subAgent.thread_spawn.agent_path = null;
+  await store.refresh();
+  assert.equal(store.agents.get('child')?.agentPath, '/root/child', 'Null path must retain known metadata');
+  assert.equal(store.agents.get('grandchild')?.agentPath, '/root/child/grandchild', 'Omitted path must retain known metadata');
+  threads.get('child').source.subAgent.thread_spawn.agent_path = '/root/renamed-task';
+  await store.refresh();
+  assert.equal(store.agents.get('child')?.agentPath, '/root/renamed-task', 'New canonical path must replace previous metadata');
 
   for (const value of threads.values()) {
     value.status = { type: 'idle', activeFlags: [] };
@@ -146,9 +158,11 @@ try {
   assert.match(store.connection, /reconnecting/i);
   await until('authoritative reconnect', () => store.connected && [...store.agents.values()].every(value => value.status === 'idle'), 9000);
   assert.equal(store.agents.get('grandchild')?.parentId, 'child');
+  assert.equal(store.agents.get('child')?.agentPath, '/root/renamed-task');
+  assert.equal(store.agents.get('grandchild')?.agentPath, '/root/child/grandchild');
   assert.deepEqual(unexpected, []);
   for (const method of allowed) assert.ok(methods.get(method) > 0, `${method} should have been requested`);
-  console.log('PASS: empty startup, nested spawn, active/idle notifications, disconnect, unknown state, authoritative reconnect');
+  console.log('PASS: empty startup, nested spawn references, partial metadata retention, reference updates, active/idle notifications, disconnect, unknown state, authoritative reconnect');
   console.log(`Read-only RPCs: ${[...methods].map(([method, count]) => `${method}=${count}`).join(', ')}`);
 } finally {
   store?.stop();

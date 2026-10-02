@@ -46,6 +46,12 @@ try:
     assert '38;2;255;85;85m' in raw, 'System error red'
     raw, text = frame(b' ')
     assert 'child-idle' in text and 'child-unloaded' in text and 'grandchild-active' in text
+    assert 'task: /root/child-idle' in text, 'Subagent task must use canonical reference'
+    assert 'task: /root/bridge-unloaded/grandchild-active' in text, 'Nested reference lost'
+    assert 'task: Task unavailable' in text, 'Missing reference must have explicit fallback'
+    assert '“/root/' not in text and 'child-idle”' not in text and 'grandchild-active”' not in text, 'Subagent task values must not be quoted'
+    assert 'task for child' not in text, 'Subagent prompt used in place of reference'
+    assert 'task: “First task line - indented item Last line”' in text, 'Root prompt task changed'
     expanded_lines = text.splitlines()
     for child in ['child-idle', 'child-unloaded', 'grandchild-active']:
         child_line = next(i for i, line in enumerate(expanded_lines) if child in line and 'task for' not in line)
@@ -112,7 +118,23 @@ try:
     plain = task_lines[first + 3]
     assert indented.lstrip().startswith('- indented item') and '>' not in indented
     assert plain.lstrip().startswith('Last line') and '>' not in plain
+    assert 'task source: fixture' in text, 'Root task provenance changed'
     frame(b'd')
+    frame(b'\x1b[B')
+    _, text = frame(b'\r')
+    assert 'task: /root/child-idle' in text and 'task source:' not in text, 'Subagent detail reference or label incorrect'
+    assert 'task for child-idle' in text, 'Subagent current task missing from details'
+    frame(b'd')
+    frame(b'\x1b[B')
+    _, text = frame(b'\r')
+    assert 'task: Task unavailable' in text, 'Missing detail reference must have explicit fallback'
+    frame(b'd')
+    frame(b'\x1b[A')
+    frame(b'\x1b[A')
+    frame(b' ')
+    os.kill(proc.pid, signal.SIGUSR1)
+    _, text = frame()
+    assert 'task: /root/recovered-task' in text, 'Reference arrival did not expand root'
     for rows, cols in [(24, 80), (12, 45), (3, 10), (35, 120)]:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         os.kill(proc.pid, signal.SIGWINCH)
@@ -124,7 +146,7 @@ try:
     frame(b'q')
     assert proc.wait(timeout=5) == 0
     assert termios.tcgetattr(slave) == original
-    print('PASS UI PTY: RGB palette, tree spacing, compact roots, auto-expansion on nested changes/add/remove, Enter details, multiline tasks, filters, resize, q')
+    print('PASS UI PTY: RGB palette, tree spacing, compact roots, canonical and nested task references, missing-reference fallback, path arrival expansion, Enter details, multiline root tasks, filters, resize, q')
 finally:
     if proc.poll() is None: proc.terminate(); proc.wait(timeout=5)
     os.close(master); os.close(slave)
