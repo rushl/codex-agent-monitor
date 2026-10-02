@@ -1,6 +1,7 @@
 import readline from 'node:readline';
+import { MonitorColors } from './monitor-colors.js';
 import type { MonitorStore } from './store.js';
-import { colorMode, effortStyle, normalizeState, paint, stateStyle, stateSymbol, styles, type ColorMode, type TextStyle } from './style.js';
+import { colorMode, normalizeState, paint, stateStyle, stateSymbol, styles, type ColorMode, type TextStyle } from './style.js';
 
 type Agent = MonitorStore['agents'] extends Map<string, infer Value> ? Value : never;
 type Key = readline.Key;
@@ -126,11 +127,12 @@ function valueSpans(label: string, value: string, valueStyle?: TextStyle): Span[
   return [{ text: `${label}:`, style: styles.fieldLabel }, { text: ' ' }, { text: value, style: valueStyle }];
 }
 
-export function startUI(store: MonitorStore, onQuit: () => void): () => void {
+export function startUI(store: MonitorStore, onQuit: () => void, home?: string): () => void {
   const output = process.stdout;
   const input = process.stdin;
   const rawBefore = input.isRaw;
   const mode = colorMode();
+  const colors = new MonitorColors(home);
   const expansion = new Map<string, boolean>();
   const seenRoots = new Set<string>();
   let activeOnly = false;
@@ -293,13 +295,14 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
       const role = agent.parentId && clean(agent.role) && clean(agent.role) !== label ? ` (${clean(agent.role)})` : '';
       const state = displayStatus(agent);
       const currentStateStyle = stateStyle(agent.status);
+      const nameStyle = root ? styles.rootName : colors.subagent(agent.role, agent.cwd);
       const left: Span[] = [
         { text: `${prefix}${branch}${expanded ? '▾ ' : '▸ '}` },
         { text: stateSymbol(agent.status), style: currentStateStyle },
         { text: ' ' },
-        { text: label, style: root ? styles.rootName : styles.subagentName },
+        { text: label, style: nameStyle },
       ];
-      if (role) left.push({ text: role, style: styles.subagentName });
+      if (role) left.push({ text: role, style: nameStyle });
       if (root && !expanded) {
         const count = matchingDescendants(agent);
         if (count > 0) left.push({ text: ` · ${count} matching descendant${count === 1 ? '' : 's'}`, style: styles.fieldLabel });
@@ -312,7 +315,7 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
         { text: continuation },
         ...valueSpans('model', clean(agent.model) || 'unknown', root ? styles.model : styles.subagentModel),
         { text: '  ·  ' },
-        ...valueSpans('effort', clean(agent.effort) || 'unknown', effortStyle(agent.effort)),
+        ...valueSpans('effort', clean(agent.effort) || 'unknown', colors.effort(agent.effort, agent.cwd)),
         { text: '  ·  ' },
         ...valueSpans('state', state, currentStateStyle),
         { text: '  ·  ' },
@@ -340,13 +343,15 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
   }
 
   function detailLines(agent: Agent, width: number): Line[] {
+    const nameStyle = agent.parentId ? colors.subagent(agent.role, agent.cwd) : styles.rootName;
+    const ancillaryNameStyle = agent.parentId ? nameStyle : styles.subagentName;
     const fields: Array<{ label: string; value: string; style?: TextStyle }> = [
-      { label: 'name', value: title(agent), style: agent.parentId ? styles.subagentName : styles.rootName },
+      { label: 'name', value: title(agent), style: nameStyle },
       { label: 'state', value: displayStatus(agent), style: stateStyle(agent.status) },
-      { label: 'role', value: clean(agent.role), style: styles.subagentName },
-      { label: 'nickname', value: clean(agent.nickname), style: styles.subagentName },
+      { label: 'role', value: clean(agent.role), style: ancillaryNameStyle },
+      { label: 'nickname', value: clean(agent.nickname), style: ancillaryNameStyle },
       { label: 'model', value: clean(agent.model), style: agent.parentId ? styles.subagentModel : styles.model },
-      { label: 'effort', value: clean(agent.effort), style: effortStyle(agent.effort) },
+      { label: 'effort', value: clean(agent.effort), style: colors.effort(agent.effort, agent.cwd) },
       { label: 'thread ID', value: clean(agent.id) },
       { label: 'parent ID', value: clean(agent.parentId) },
       { label: 'cwd', value: clean(agent.cwd) },
@@ -503,7 +508,12 @@ export function startUI(store: MonitorStore, onQuit: () => void): () => void {
   function onKey(value: string, key: Key): void {
     if (key.ctrl && key.name === 'c') return quit();
     if (key.name === 'q') return quit();
-    if (key.name === 'r') { void store.refresh().catch(() => scheduleRender()); return; }
+    if (key.name === 'r') {
+      colors.clear();
+      scheduleRender();
+      void store.refresh().catch(() => scheduleRender());
+      return;
+    }
     if (detail) {
       if (key.name === 'd' || key.name === 'left' || key.name === 'escape') { detail = false; return scheduleRender(); }
       if (key.name === 'up' || key.name === 'k') detailScroll--;

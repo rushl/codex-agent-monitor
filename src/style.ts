@@ -95,7 +95,12 @@ export function stateSymbol(value: string): string {
 }
 
 export function effortStyle(value: string): TextStyle {
-  return effortStyles.get(compact(value)) ?? { color: rgb(68, 136, 255), bold: true };
+  return effortStyles.get(normalizeEffort(value) ?? '') ?? { color: rgb(68, 136, 255), bold: true };
+}
+
+export function normalizeEffort(value: string): string | undefined {
+  const effort = compact(value);
+  return effortStyles.has(effort) ? effort : undefined;
 }
 
 export function colorMode(environment: NodeJS.ProcessEnv = process.env): ColorMode {

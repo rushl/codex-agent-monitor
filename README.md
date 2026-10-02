@@ -16,7 +16,7 @@ CODEX AGENT MONITOR · 1 active · connected
 
 Tested on **Ubuntu 20.04.6 LTS**, Node.js **22.16.0**, and standalone **Codex CLI/app-server 0.155.1**. Requires Node.js 20 or newer, npm for building, a UTF-8 terminal, and a user-owned running shared Codex daemon.
 
-Runtime dependencies are `ws` for WebSocket framing and `zod` for parsing protocol data. TypeScript and type declarations are project-local build dependencies. No system packages or Codex settings are changed.
+Runtime dependencies are `ws` for WebSocket framing, `zod` for parsing protocol data, and `smol-toml` for reading name color settings. TypeScript and type declarations are project-local build dependencies. No system packages or Codex settings are changed.
 
 ```bash
 cd ~/codex-agent-monitor
@@ -44,10 +44,49 @@ codex-agent-monitor --refresh 10
 | d, Left, Escape | Leave details |
 | a | Toggle recent unloaded roots |
 | u | Hide/show unloaded agents, retaining ancestors of loaded agents |
-| r | Reconcile immediately |
+| r | Reconcile immediately and reload colors |
 | q or Ctrl+C | Exit and restore terminal mode/cursor |
 
 The default view includes loaded roots and their descendants, including unloaded descendants. Discovery seeds all loaded threads plus 20 recent root candidates. Ancestors of loaded children are resolved even when older. Sessions discovered during this run remain available until archived/deleted. `a` shows the retained recent history, not every session ever created.
+
+## Configure agent name colors
+
+Set the default subagent name color and optional colors by exact agent type in your Codex home `config.toml`, usually `~/.codex/config.toml`, or in a project's `.codex/config.toml`:
+
+```toml
+[agent_monitor]
+default_name_color = "#ba63e6"
+
+[agent_monitor.agent_colors]
+explorer = "#80cbc4"
+worker = "#ffcc80"
+```
+
+An agent definition such as `.codex/agents/explorer.toml` can set its own color:
+
+```toml
+name = "explorer"
+# Keep your existing agent settings here.
+
+[agent_monitor]
+name_color = "#80cbc4"
+```
+
+These are monitor settings. Colors use `#RRGGBB` and apply to subagent names, nicknames, and role labels in the tree and details. Root names remain white. Without settings, subagent names keep their current purple. Missing files, invalid TOML, and invalid color values retain the available inherited or built-in colors. `CODEX_AGENT_MONITOR_COLOR=256` converts colors to the terminal palette; `none` disables text styling.
+
+The monitor reads the selected Codex home first, then ancestor project `.codex` directories from outermost to the agent's working directory. A nearer role color overrides an inherited role color. A nearer default changes only the fallback for roles without a specific color. Within each directory, an agent definition's `name_color` overrides `agent_colors`. Definitions match their declared `name`; files without a name use the configured role from `[agents.<type>].config_file`, or the filename stem for files in `agents/`. Relative `config_file` paths resolve from the directory containing `config.toml`.
+
+Colors are cached per working directory. Press `r` to reload after editing a file. No Codex settings are written, and these colors do not affect agent execution.
+
+To override effort colors for roots and subagents, add entries to `config.toml`:
+
+```toml
+[agent_monitor.effort_colors]
+high = "#ffcc80"
+xhigh = "#80cbc4"
+```
+
+Supported effort keys are `none`, `minimal`, `lowest`, `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`. Each level has an independent override. Unset levels keep their inherited override or their existing built-in color. Invalid entries are ignored independently. Keys and displayed effort values use the same case-insensitive normalization, which removes punctuation and spaces. Unknown effort values retain their existing fallback color. Effort colors are read only from `config.toml`, including ancestor project settings, and do not apply from individual agent definition files. Press `r` to reload changes.
 
 ## Architecture and discovery
 
@@ -108,6 +147,8 @@ Practical smoke checks:
 
 ```bash
 npm run build
+node scripts/smoke-name-colors.mjs
+python3 scripts/smoke-name-colors-ui.py
 node scripts/smoke-live.mjs
 python3 scripts/smoke-terminal.py
 node scripts/smoke-reconnect.mjs

@@ -9,7 +9,7 @@ store.reconciliations = 1;
 function agent(id, parentId, status, effort, time) {
   return { id, parentId, status, effort, name: id, role: parentId ? 'explorer' : '', nickname: parentId ? id : '',
     agentPath: parentId ? `/root/${id}` : '',
-    cwd: '/fixture', model: 'gpt-fixture', prompt: `task for ${id}`, spawnPrompt: '', promptSource: 'fixture',
+    cwd: process.env.MONITOR_FIXTURE_CWD || '/fixture', model: 'gpt-fixture', prompt: `task for ${id}`, spawnPrompt: '', promptSource: 'fixture',
     flags: [], lastActivity: time, lastTurnStatus: '' };
 }
 const now = Date.now() / 1000;

@@ -33,7 +33,7 @@ async function main(){
   let cleanup=()=>{};let quitting=false;
   const quit=()=>{if(quitting)return;quitting=true;cleanup();store.stop();};
   process.once('SIGINT',quit);process.once('SIGTERM',quit);
-  if(!opts.doctor&&!opts.once)cleanup=startUI(store,quit);
+  if(!opts.doctor&&!opts.once)cleanup=startUI(store,quit,opts.home);
   await store.start();
   if(quitting){store.stop();return;}
   if(opts.doctor){
